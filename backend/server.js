@@ -18,32 +18,6 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
-// ============================================================
-// TEMPORARY SETUP ROUTE - remove this block once migration is done
-// ============================================================
-app.get('/api/setup/migrate', async (req, res) => {
-  if (req.query.key !== process.env.SETUP_KEY) return res.status(403).json({ error: 'forbidden' });
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const mysql = require('mysql2/promise');
-    const sql = fs.readFileSync(path.join(__dirname, 'migrations/schema.sql'), 'utf8');
-    const connection = await mysql.createConnection({
-      host: process.env.DB_HOST, port: process.env.DB_PORT,
-      user: process.env.DB_USER, password: process.env.DB_PASSWORD,
-      multipleStatements: true,
-    });
-    await connection.query(sql);
-    await connection.end();
-    res.json({ message: 'Migration complete' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-// ============================================================
-// END TEMPORARY SETUP ROUTE
-// ============================================================
-
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/doctors', doctorRoutes);
@@ -59,6 +33,12 @@ async function start() {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connection established');
+
+    // Automatically creates any missing tables based on the Sequelize models.
+    // Safe to run on every startup - it only creates tables that don't exist yet,
+    // it never drops or overwrites existing data.
+    await sequelize.sync();
+    console.log('✅ Database tables synced');
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
