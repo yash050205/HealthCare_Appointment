@@ -1,10 +1,13 @@
 const OpenAI = require('openai');
 
 const client = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: 'https://api.groq.com/openai/v1',
+    })
   : null;
 
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MODEL = process.env.OPENAI_MODEL || 'llama-3.3-70b-versatile';
 
 /**
  * Generates a pre-visit summary for the doctor from the patient's symptom text.
