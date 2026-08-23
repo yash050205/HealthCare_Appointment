@@ -1,29 +1,14 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { Notification } = require('../models');
 
-let transporter = null;
-function getTransporter() {
-  if (transporter) return transporter;
-  if (!process.env.SMTP_HOST) return null;
-
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
-  return transporter;
+let resend = null;
+function getClient() {
+  if (resend) return resend;
+  if (!process.env.RESEND_API_KEY) return null;
+  resend = new Resend(process.env.RESEND_API_KEY);
+  return resend;
 }
 
-/**
- * Queues a notification row (status=pending) and immediately attempts to send it.
- * If sending fails (SMTP down, bad credentials, etc.) the row is left/marked so the
- * background retry job (see jobs/notificationRetryJob.js) can pick it up later.
- * This keeps booking/cancellation flows from failing just because email is down.
- */
 async function queueAndSendEmail({ userId, appointmentId = null, type, to, subject, body }) {
   const notification = await Notification.create({
     user_id: userId,
@@ -39,24 +24,26 @@ async function queueAndSendEmail({ userId, appointmentId = null, type, to, subje
 }
 
 async function attemptSend(notification, to) {
-  const t = getTransporter();
-  if (!t) {
+  const client = getClient();
+  if (!client) {
     await notification.update({
       status: 'failed',
-      last_error: 'SMTP not configured',
+      last_error: 'Resend not configured (missing RESEND_API_KEY)',
       retry_count: notification.retry_count + 1,
     });
-    console.warn(`[emailService] SMTP not configured - notification ${notification.id} left pending for retry`);
+    console.warn(`[emailService] Resend not configured - notification ${notification.id} left pending for retry`);
     return false;
   }
 
   try {
-    await t.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@clinic.com',
+    const { error } = await client.emails.send({
+      from: process.env.EMAIL_FROM || 'Clinic Appointments <onboarding@resend.dev>',
       to,
       subject: notification.subject,
       html: notification.body,
     });
+    if (error) throw new Error(error.message || JSON.stringify(error));
+
     await notification.update({ status: 'sent' });
     return true;
   } catch (err) {
@@ -70,4 +57,4 @@ async function attemptSend(notification, to) {
   }
 }
 
-module.exports = { queueAndSendEmail, attemptSend, getTransporter };
+module.exports = { queueAndSendEmail, attemptSend };

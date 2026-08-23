@@ -19,6 +19,7 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.14",
     "openai": "^4.56.0",
+    "resend": "^4.0.0",
     "sequelize": "^6.37.3",
     "uuid": "^9.0.1"
   },

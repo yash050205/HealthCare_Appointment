@@ -22,7 +22,6 @@ function start() {
           start_date: { [Op.lte]: todayStr },
           end_date: { [Op.gte]: todayStr },
         },
-        include: [{ model: User, attributes: [] }],
       });
 
       for (const r of reminders) {
