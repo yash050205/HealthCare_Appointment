@@ -18,6 +18,34 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// ============================================================
+// TEMPORARY DIAGNOSTIC ROUTE - remove once everything is confirmed working
+// ============================================================
+app.get('/api/setup/status', async (req, res) => {
+  try {
+    const [tables] = await sequelize.query('SHOW TABLES');
+    let syncResult = 'not attempted';
+    try {
+      await sequelize.sync();
+      syncResult = 'sync() ran successfully';
+    } catch (syncErr) {
+      syncResult = `sync() FAILED: ${syncErr.message}`;
+    }
+    const [tablesAfter] = await sequelize.query('SHOW TABLES');
+    res.json({
+      database: process.env.DB_NAME,
+      tablesBeforeSync: tables,
+      syncResult,
+      tablesAfterSync: tablesAfter,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+// ============================================================
+// END TEMPORARY DIAGNOSTIC ROUTE
+// ============================================================
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/doctors', doctorRoutes);
@@ -33,12 +61,6 @@ async function start() {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connection established');
-
-    // Automatically creates any missing tables based on the Sequelize models.
-    // Safe to run on every startup - it only creates tables that don't exist yet,
-    // it never drops or overwrites existing data.
-    await sequelize.sync();
-    console.log('✅ Database tables synced');
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
