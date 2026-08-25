@@ -204,3 +204,6 @@ sees "AI summary unavailable, review manually" instead of the app breaking.
       deployed frontend origin
 - [x] `SYSTEM_DESIGN.md` — double-booking prevention, doctor leave conflict handling, slot
       hold mechanism, notification failure handling
+
+      Doctor Credentials: charushama2005@gmail.com
+      pswd: Hello@1234
